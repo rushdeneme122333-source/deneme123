@@ -2,387 +2,449 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1 Mart - İlk Kahve</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #1a1a1a;
-            color: white;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
-        }
-        #gameContainer {
-            position: relative;
-            width: 800px;
-            height: 450px;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
-            border: 4px solid #fff;
-            border-radius: 10px;
-            background-color: #87CEEB;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-        }
-        #uiLayer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        #dialogBox {
-            background: rgba(0, 0, 0, 0.85);
-            border-top: 2px solid white;
-            padding: 20px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            z-index: 10;
-        }
-        .btn {
-            background: #e74c3c;
-            color: white;
-            border: 2px solid white;
-            padding: 10px 20px;
-            margin: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            font-family: inherit;
-            border-radius: 5px;
-            transition: 0.2s;
-        }
-        .btn:hover { background: #c0392b; }
-        .hidden { display: none !important; }
-        #dateDisplay {
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 2px 2px 4px #000;
-        }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #111; overflow: hidden; font-family: 'Courier New', Courier, monospace; touch-action: none; }
+        #gameCanvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+        
+        /* UI Katmanı */
+        #uiLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; z-index: 10; }
+        
+        /* Diyalog Kutusu */
+        #dialogContainer { display: none; background: rgba(0, 0, 0, 0.85); border: 2px solid #fff; border-radius: 8px; padding: 15px; margin-bottom: 80px; pointer-events: auto; }
+        #dialogName { color: #f1c40f; font-weight: bold; margin-bottom: 5px; font-size: 16px; }
+        #dialogText { color: #fff; font-size: 14px; line-height: 1.4; min-height: 40px; }
+        #dialogIndicator { color: #e74c3c; animation: blink 1s infinite; text-align: right; font-size: 12px; margin-top: 5px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Mobil Kontroller */
+        #mobileControls { position: absolute; bottom: 20px; left: 0; width: 100%; height: 80px; display: flex; justify-content: space-between; padding: 0 20px; pointer-events: auto; z-index: 20; }
+        .dpad { display: flex; gap: 10px; }
+        .btn { width: 60px; height: 60px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; color: white; font-size: 24px; display: flex; justify-content: center; align-items: center; active: background: rgba(255,255,255,0.5); }
+        .action-btn { width: 70px; height: 70px; background: rgba(231, 76, 60, 0.4); border-color: #e74c3c; border-radius: 50%; }
+
+        /* Ara Ekranlar (Overlay) */
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 30; text-align: center; color: white; padding: 20px; }
+        .choice-btn { background: #2980b9; border: 2px solid #fff; color: white; padding: 15px 30px; margin: 10px; font-size: 16px; border-radius: 8px; width: 100%; max-width: 300px; cursor: pointer; }
+        
+        #dateBanner { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; border: 1px solid #fff; pointer-events: none; z-index: 5; }
     </style>
 </head>
 <body>
 
-    <!-- Arka plan müziği (Blok3 introsu veya başka bir parça eklenebilir) -->
-    <!-- <audio id="bgm" src="blok3_intro.mp3" loop></audio> -->
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="dateBanner">Eylül 2024</div>
 
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="800" height="450"></canvas>
-        <div id="uiLayer">
-            <div id="dateDisplay">Eylül 2024</div>
-            <div style="flex-grow: 1;"></div>
-            <div id="dialogBox">Erciyes Üniversitesi Çardağı... İlerlemek için yön tuşlarını, diyalog için BOŞLUK tuşunu kullan.</div>
-        </div>
-        <div id="overlay">
-            <h2 id="overlayTitle">Başlık</h2>
-            <div id="overlayContent">İçerik</div>
+    <div id="uiLayer">
+        <div></div>
+        <div id="dialogContainer">
+            <div id="dialogName">İsim</div>
+            <div id="dialogText">Metin</div>
+            <div id="dialogIndicator">▼ İleri (Aksiyon Tuşu)</div>
         </div>
     </div>
 
+    <!-- Mobil Butonlar -->
+    <div id="mobileControls">
+        <div class="dpad">
+            <div class="btn" id="btnLeft">◄</div>
+            <div class="btn" id="btnRight">►</div>
+        </div>
+        <div class="btn action-btn" id="btnAction">O</div>
+    </div>
+
+    <!-- Mini Oyun & Seçim Ekranları -->
+    <div id="overlay">
+        <h2 id="overlayTitle" style="color: #f1c40f;">Kupon Yap</h2>
+        <div id="overlayContent"></div>
+    </div>
+
 <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const dialogBox = document.getElementById("dialogBox");
-    const overlay = document.getElementById("overlay");
-    const overlayTitle = document.getElementById("overlayTitle");
-    const overlayContent = document.getElementById("overlayContent");
-    const dateDisplay = document.getElementById("dateDisplay");
+    // --- OYUN MOTORU & KURULUM ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-    let chapter = 1;
-    let dialogQueue = [];
-    let isDialogActive = false;
-    let interactionCallback = null;
-    let frameCount = 0;
+    // --- GİRDİ KONTROLLERİ (Klavye & Dokunmatik) ---
+    const input = { left: false, right: false, action: false, actionJustPressed: false };
 
-    const keys = { ArrowRight: false, ArrowLeft: false };
+    // Klavye
+    window.addEventListener('keydown', e => {
+        if(e.code === 'ArrowLeft') input.left = true;
+        if(e.code === 'ArrowRight') input.right = true;
+        if(e.code === 'Space') { input.action = true; input.actionJustPressed = true; }
+    });
+    window.addEventListener('keyup', e => {
+        if(e.code === 'ArrowLeft') input.left = false;
+        if(e.code === 'ArrowRight') input.right = false;
+        if(e.code === 'Space') input.action = false;
+    });
 
-    const player = { x: 50, y: 350, w: 40, h: 60, color: "#3498db", hasFlower: false };
-    const melike = { x: 650, y: 350, w: 40, h: 60, color: "#e74c3c", active: true };
+    // Dokunmatik
+    const bindTouch = (id, key) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', e => { e.preventDefault(); input[key] = true; if(key === 'action') input.actionJustPressed = true; });
+        el.addEventListener('touchend', e => { e.preventDefault(); input[key] = false; });
+    };
+    bindTouch('btnLeft', 'left');
+    bindTouch('btnRight', 'right');
+    bindTouch('btnAction', 'action');
 
-    const memories = [];
-    let memoryScore = 0;
+    // --- PİKSEL SANAT (PIXEL ART) VERİLERİ ---
+    // 0: Boş, 1: Ten, 2: Saç/Ayakkabı, 3: Tişört/Ceket, 4: Pantolon, 5: Kırmızı (Çiçek/Kupa)
+    const cagriSprite = [
+        [0,0,2,2,2,0,0],
+        [0,2,1,1,1,2,0],
+        [0,0,1,1,1,0,0],
+        [0,3,3,3,3,3,0],
+        [3,3,3,3,3,3,3],
+        [1,0,3,3,3,0,1],
+        [0,0,4,4,4,0,0],
+        [0,0,4,0,4,0,0],
+        [0,2,2,0,2,2,0]
+    ];
+    
+    const melikeSprite = [
+        [0,2,2,2,2,2,0],
+        [2,2,1,1,1,2,2],
+        [2,0,1,1,1,0,2],
+        [2,3,3,3,3,3,2],
+        [0,3,3,3,3,3,0],
+        [1,0,4,4,4,0,1],
+        [0,0,4,4,4,0,0],
+        [0,0,4,0,4,0,0],
+        [0,1,1,0,1,1,0]
+    ];
 
-    window.addEventListener("keydown", (e) => {
-        if (e.code === "ArrowRight") keys.ArrowRight = true;
-        if (e.code === "ArrowLeft") keys.ArrowLeft = true;
-        
-        if (e.code === "Space") {
-            if (isDialogActive) {
-                nextDialog();
-            } else if (Math.abs(player.x - melike.x) < 70 && melike.active) {
-                triggerChapterInteraction();
+    const flowerSprite = [
+        [0,5,0],
+        [5,5,5],
+        [0,5,0],
+        [0,2,0],
+        [0,2,0]
+    ];
+
+    function drawPixelArt(ctx, sprite, x, y, scale, colors) {
+        for(let r=0; r<sprite.length; r++) {
+            for(let c=0; c<sprite[r].length; c++) {
+                let val = sprite[r][c];
+                if(val !== 0) {
+                    ctx.fillStyle = colors[val];
+                    ctx.fillRect(x + c*scale, y + r*scale, scale, scale);
+                }
             }
         }
-    });
-
-    window.addEventListener("keyup", (e) => {
-        if (e.code === "ArrowRight") keys.ArrowRight = false;
-        if (e.code === "ArrowLeft") keys.ArrowLeft = false;
-    });
-
-    function showDialog(lines, callback) {
-        dialogQueue = lines;
-        isDialogActive = true;
-        interactionCallback = callback;
-        nextDialog();
     }
 
-    function nextDialog() {
-        if (dialogQueue.length > 0) {
-            dialogBox.innerText = dialogQueue.shift();
+    // --- OYUN NESNELERİ ---
+    const camera = { x: 0 };
+    const player = { 
+        x: 100, y: 0, w: 35, h: 45, speed: 4, dir: 1, hasFlower: false,
+        colors: {1: '#ffccaa', 2: '#3e2723', 3: '#2980b9', 4: '#2c3e50', 5: '#e74c3c'} 
+    };
+    
+    const npcs = []; // Melike, Eren, Ceren vb.
+    const particles = []; // Yağmur/Kar/Kalp efektleri
+    let environment = []; // Ağaçlar, çardak vb.
+
+    // --- DİYALOG SİSTEMİ ---
+    const dialogBox = document.getElementById('dialogContainer');
+    const dialogName = document.getElementById('dialogName');
+    const dialogText = document.getElementById('dialogText');
+    const dateBanner = document.getElementById('dateBanner');
+    
+    let isDialogActive = false;
+    let dialogQueue = [];
+    let currentText = "";
+    let typeIndex = 0;
+    let onDialogComplete = null;
+
+    function startDialog(name, lines, callback) {
+        dialogQueue = lines;
+        dialogName.innerText = name;
+        isDialogActive = true;
+        dialogBox.style.display = 'block';
+        onDialogComplete = callback;
+        showNextLine();
+    }
+
+    function showNextLine() {
+        if(dialogQueue.length > 0) {
+            currentText = dialogQueue.shift();
+            typeIndex = 0;
+            dialogText.innerText = "";
         } else {
             isDialogActive = false;
-            dialogBox.innerText = "Hareket et (Yön Tuşları)";
-            if (interactionCallback) {
-                let cb = interactionCallback;
-                interactionCallback = null;
-                cb();
-            }
+            dialogBox.style.display = 'none';
+            if(onDialogComplete) onDialogComplete();
         }
     }
 
-    function showOverlay(title, htmlContent) {
-        overlayTitle.innerText = title;
-        overlayContent.innerHTML = htmlContent;
-        overlay.style.display = "flex";
-        isDialogActive = true; 
-    }
-
-    function closeOverlay() {
-        overlay.style.display = "none";
-        isDialogActive = false;
-    }
-
-    function triggerChapterInteraction() {
-        if (chapter === 1) {
-            showDialog([
-                "Onu ilk kez burada, çardakta gördüm.",
-                "Ceren ve Eren'le oturuyordu.",
-                "O an konuşmadık ama çok beğenmiştim."
-            ], () => { setupChapter(2); });
-        } else if (chapter === 2) {
-            showDialog([
-                "Aylar geçti...",
-                "Bazen en güzel hikayeler arkadaşlıkla başlar.",
-                "Ona bir kupon yaptırdım..."
-            ], () => { setupChapter(3); });
-        } else if (chapter === 4) {
-            showDialog([
-                "Çiçeği evinin altında verdim.",
-                "Beraber yürüyerek kafeye gidiyoruz."
-            ], () => { setupChapter(5); });
-        } else if (chapter === 5) {
-            showDialog([
-                "Mekan: Coffedusta.",
-                "Ve o gün, 1 Mart 2025."
-            ], () => { setupChapter(6); });
-        } else if (chapter === 7 && player.x > 700) {
-            // End game check done in update
-        }
-    }
-
-    function setupChapter(newChapter) {
-        chapter = newChapter;
+    // --- BÖLÜM (CHAPTER) YÖNETİMİ ---
+    let chapter = 1;
+    let groundY = 0;
+    
+    function setupChapter(ch) {
+        chapter = ch;
+        npcs.length = 0;
+        environment.length = 0;
         player.x = 50;
+        camera.x = 0;
 
-        switch (chapter) {
-            case 2:
-                canvas.style.backgroundColor = "#d35400"; // Sonbahar
-                dateDisplay.innerText = "Kış 2024 / Arkadaşız";
-                melike.x = 700;
-                break;
-            case 3:
-                // Kupon Minigame
-                melike.active = false;
-                showOverlay("Kupon Yaptırdım", `
-                    <p>Maçları seç (Ne seçersen seç hikaye devam edecek)</p>
-                    <button class="btn" onclick="kuponSonuc()">MS 1</button>
-                    <button class="btn" onclick="kuponSonuc()">2.5 Üst</button>
-                    <button class="btn" onclick="kuponSonuc()">KG Var</button>
-                `);
-                break;
-            case 4:
-                canvas.style.backgroundColor = "#2c3e50"; 
-                dateDisplay.innerText = "Mart 2025 Başı";
-                player.hasFlower = true;
-                melike.active = true;
-                melike.x = 600;
-                break;
-            case 5:
-                canvas.style.backgroundColor = "#f1c40f"; // Coffedusta içi
-                dateDisplay.innerText = "1 Mart 2025 - Coffedusta";
-                melike.x = 400;
-                break;
-            case 6:
-                // First Date Options
-                melike.active = false;
-                showOverlay("Coffedusta'dayız", `
-                    <p>Ona ne söylemek istersin?</p>
-                    <button class="btn" onclick="dateSecim('A')">A) Kahve harika.</button>
-                    <button class="btn" onclick="dateSecim('B')">B) İyi ki geldin.</button>
-                    <button class="btn" onclick="dateSecim('C')">C) Kupon yine tutmadı.</button>
-                `);
-                break;
-            case 7:
-                canvas.style.backgroundColor = "#8e44ad"; 
-                dateDisplay.innerText = "Zaman Akıyor...";
-                player.hasFlower = false;
-                melike.active = true;
-                melike.x = 700;
-                player.x = 50;
-                
-                // Anıları oluştur
-                for(let i=1; i<=4; i++) {
-                    memories.push({ x: i*150, y: 360, collected: false });
-                }
-                showDialog(["1.5 yıl geçti...", "Yoldaki anıları toplayarak ilerle."], null);
-                break;
+        groundY = canvas.height - 100;
+        player.y = groundY - player.h;
+
+        if (ch === 1) {
+            dateBanner.innerText = "Eylül 2024 - Kampüs";
+            // Çardak Çizimi
+            environment.push({ type: 'gazebo', x: 600, y: groundY - 120 });
+            // Melike, Ceren, Eren
+            npcs.push({ x: 620, y: groundY - 45, sprite: melikeSprite, colors: {1:'#ffccaa', 2:'#e67e22', 3:'#e74c3c', 4:'#34495e'} });
+            npcs.push({ x: 650, y: groundY - 45, sprite: cagriSprite, colors: {1:'#ffccaa', 2:'#000', 3:'#9b59b6', 4:'#000'} }); // Ceren
+            npcs.push({ x: 590, y: groundY - 45, sprite: cagriSprite, colors: {1:'#ffccaa', 2:'#7f8c8d', 3:'#2ecc71', 4:'#2c3e50'} }); // Eren
+        } 
+        else if (ch === 2) {
+            dateBanner.innerText = "Kış - Aylar Sonra";
+            for(let i=0; i<50; i++) particles.push(createSnowflake()); // Kar efekti
+            environment.push({ type: 'tree', x: 300, y: groundY - 100 });
+            npcs.push({ name: "Melike", x: 800, y: groundY - 45, sprite: melikeSprite, colors: {1:'#ffccaa', 2:'#e67e22', 3:'#e74c3c', 4:'#34495e'} });
+        }
+        else if (ch === 3) {
+            dateBanner.innerText = "Kupon Zamanı!";
+            showOverlay("Kupon Yaptırdım", `
+                <p>Kayserispor maçı var. Ne oynayalım?</p>
+                <button class="choice-btn" onclick="kuponSec()">Kayserispor Kazanır</button>
+                <button class="choice-btn" onclick="kuponSec()">2.5 Üst</button>
+                <button class="choice-btn" onclick="kuponSec()">KG Var</button>
+            `);
+        }
+        else if (ch === 4) {
+            dateBanner.innerText = "Evden Çıkış";
+            particles.length = 0;
+            player.hasFlower = true;
+            environment.push({ type: 'building', x: 600, y: groundY - 200 }); // Evi
+            npcs.push({ name: "Melike", x: 650, y: groundY - 45, sprite: melikeSprite, colors: {1:'#ffccaa', 2:'#e67e22', 3:'#9b59b6', 4:'#34495e'} });
+        }
+        else if (ch === 5) {
+            dateBanner.innerText = "1 Mart 2025 - Coffedusta";
+            environment.push({ type: 'cafe', x: 400, y: groundY - 150 });
+            npcs.push({ name: "Melike", x: 450, y: groundY - 45, sprite: melikeSprite, colors: {1:'#ffccaa', 2:'#e67e22', 3:'#e74c3c', 4:'#34495e'} });
+        }
+        else if (ch === 7) {
+            dateBanner.innerText = "1.5 Yıl Geçti...";
+            player.hasFlower = false;
+            environment.push({ type: 'gazebo', x: 1200, y: groundY - 120 });
         }
     }
 
-    // Global Functions for UI HTML
-    window.kuponSonuc = function() {
-        closeOverlay();
-        showDialog([
-            "KUPON YATTI...",
-            "Ama...",
-            "Ona 'tuttu' dedim!",
-            "Çiçek alıp yanına gidiyorum."
-        ], () => { setupChapter(4); });
+    // Kar efekti
+    function createSnowflake() {
+        return { x: Math.random()*2000, y: Math.random()*canvas.height, speed: 1 + Math.random()*2, size: Math.random()*3 };
     }
 
-    window.dateSecim = function(secim) {
-        closeOverlay();
-        let tepki = "";
-        if(secim === 'C') tepki = "Melike güldü. 'Biliyordum!'";
-        else tepki = "Melike gülümsedi.";
-        
-        showDialog([
+    // Overlay fonksiyonları
+    const overlay = document.getElementById('overlay');
+    function showOverlay(title, content) {
+        document.getElementById('overlayTitle').innerText = title;
+        document.getElementById('overlayContent').innerHTML = content;
+        overlay.style.display = 'flex';
+        input.actionJustPressed = false; // block immediate close
+    }
+
+    window.kuponSec = function() {
+        overlay.style.display = 'none';
+        startDialog("Çağrı", [
+            "Kupon tutmadı...",
+            "Ama ben ona 'tuttu' dedim!",
+            "Çiçeği alıp yanına gitme vakti."
+        ], () => setupChapter(4));
+    };
+
+    window.dateSecim = function(secenek) {
+        overlay.style.display = 'none';
+        let tepki = secenek === 'kupon' ? "Melike: Hahaha! Biliyordum zaten." : "Melike: Çok tatlısın...";
+        startDialog("Coffedusta", [
             tepki,
             "Çaylar, kahveler içildi...",
             "Her şey mükemmeldi."
-        ], () => { setupChapter(7); });
-    }
+        ], () => setupChapter(7));
+    };
 
+    // --- GÜNCELLEME DÖNGÜSÜ (UPDATE) ---
     function update() {
-        if (!isDialogActive) {
-            if (keys.ArrowRight && player.x < canvas.width - player.w) player.x += 5;
-            if (keys.ArrowLeft && player.x > 0) player.x -= 5;
+        // Diyalog Yazı Efekti (Typewriter)
+        if(isDialogActive) {
+            if(typeIndex < currentText.length) {
+                dialogText.innerText += currentText.charAt(typeIndex);
+                typeIndex++;
+            }
+            if(input.actionJustPressed && typeIndex >= currentText.length) {
+                showNextLine();
+            }
+            input.actionJustPressed = false;
+            return; // Diyalog varken oyun durur
         }
 
-        if (chapter === 7) {
-            // Tarih değişimi efekti
-            if (player.x > 100) dateDisplay.innerText = "Haziran 2025";
-            if (player.x > 300) dateDisplay.innerText = "Eylül 2025";
-            if (player.x > 500) dateDisplay.innerText = "Ocak 2026";
-            if (player.x > 650) dateDisplay.innerText = "Bugün (1.5 Yıl Sonra)";
+        // Oyuncu Hareketi
+        if(input.left) { player.x -= player.speed; player.dir = -1; }
+        if(input.right) { player.x += player.speed; player.dir = 1; }
+        
+        // Sınırlar ve Kamera Takibi
+        if(player.x < 0) player.x = 0;
+        camera.x = player.x - canvas.width/2 + 50;
+        if(camera.x < 0) camera.x = 0;
 
-            // Anı toplama
-            memories.forEach(m => {
-                if (!m.collected && Math.abs(player.x - m.x) < 30) {
-                    m.collected = true;
-                    memoryScore++;
+        // Etkileşimler
+        npcs.forEach(npc => {
+            if(Math.abs(player.x - npc.x) < 60 && input.actionJustPressed) {
+                if(chapter === 1) {
+                    startDialog("İç Ses", ["Onu ilk kez burada, okulun çardağında gördüm.", "O an konuşmadık ama çok beğenmiştim."], () => setupChapter(2));
+                } else if(chapter === 2) {
+                    startDialog("Melike", ["Selam! Arkadaş olmamız ne güzel oldu."], () => setupChapter(3));
+                } else if(chapter === 4) {
+                    startDialog("Melike", ["Aaa çiçek! Teşekkür ederim. Hadi kafeye geçelim."], () => setupChapter(5));
+                } else if(chapter === 5) {
+                    showOverlay("First Date", `
+                        <p>Ne söylemek istersin?</p>
+                        <button class="choice-btn" onclick="dateSecim('kahve')">Kahveler çok iyiymiş.</button>
+                        <button class="choice-btn" onclick="dateSecim('guzel')">İyi ki geldin, çok güzelsin.</button>
+                        <button class="choice-btn" onclick="dateSecim('kupon')">Kupon aslında tutmadı...</button>
+                    `);
                 }
-            });
+            }
+        });
 
-            // Final
-            if (player.x > 680 && !isDialogActive) {
-                showDialog([
-                    `Toplanan Anılar: ${memoryScore}/4`,
-                    "Sana kahve ısmarlamak için kuponu bahane ettim.",
-                    "Ama asıl istediğim kahve değil, seninle olmaktı.",
-                    "Üzerinden ne kadar zaman geçerse geçsin...",
-                    "İlk günkü kadar güzel kalacak.",
-                    "SON. ❤️"
-                ], () => { melike.x = player.x + 40; }); // Yan yana durma
+        // Chapter 7 (Son) Yürüyüş Akışı
+        if(chapter === 7) {
+            if(player.x > 200) dateBanner.innerText = "Haziran 2025";
+            if(player.x > 500) dateBanner.innerText = "Ocak 2026";
+            if(player.x > 800) dateBanner.innerText = "Bugün (1.5 Yıl Sonra)";
+            
+            if(player.x > 1100 && !isDialogActive) {
+                startDialog("Çağrı & Melike", [
+                    "Sana kahve ısmarlamak için kuponu bahane etmiştim.",
+                    "Ama asıl istediğim seninle zaman geçirmekti.",
+                    "1.5 yıl geçti...",
+                    "Ve ilk günkü kadar güzel. ❤️"
+                ], null);
+                player.x = 1099; // İleri gitmeyi engelle
             }
         }
+
+        // Partikül Güncelleme (Kar vb)
+        particles.forEach(p => {
+            p.y += p.speed;
+            if(p.y > groundY) p.y = 0;
+        });
+
+        input.actionJustPressed = false;
     }
 
+    // --- ÇİZİM DÖNGÜSÜ (RENDER) ---
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Arka Plan Renkleri
+        let skyColor = "#87CEEB";
+        if(chapter === 2) skyColor = "#2c3e50"; // Kış
+        if(chapter === 4) skyColor = "#e67e22"; // Gün batımı
+        if(chapter === 5) skyColor = "#2c2c54"; // Akşam Cafe
+        
+        ctx.fillStyle = skyColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Zemin çizimi
-        ctx.fillStyle = "#27ae60";
-        if (chapter === 5 || chapter === 6) ctx.fillStyle = "#8d6e63"; // Ahşap zemin (Kafe)
-        ctx.fillRect(0, 410, canvas.width, 40);
+        // Zemin
+        ctx.fillStyle = chapter === 5 ? "#8d6e63" : "#27ae60"; // Kafeyse ahşap, değilse çim
+        ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
 
-        // Çardak Çizimi (Bölüm 1)
-        if (chapter === 1) {
-            ctx.fillStyle = "#636e72";
-            ctx.fillRect(630, 250, 80, 10); // Çatı
-            ctx.fillRect(640, 260, 5, 150); // Direk
-            ctx.fillRect(695, 260, 5, 150); // Direk
+        ctx.save();
+        ctx.translate(-camera.x, 0);
+
+        // Çevre Elemanları
+        environment.forEach(env => {
+            if(env.type === 'gazebo') {
+                ctx.fillStyle = "#8e44ad";
+                ctx.fillRect(env.x, env.y, 140, 20); // Çatı
+                ctx.fillStyle = "#7f8c8d";
+                ctx.fillRect(env.x+10, env.y+20, 10, 100); // Sol direk
+                ctx.fillRect(env.x+120, env.y+20, 10, 100); // Sağ direk
+            } else if (env.type === 'building') {
+                ctx.fillStyle = "#ecf0f1";
+                ctx.fillRect(env.x, env.y, 150, 200);
+                ctx.fillStyle = "#34495e";
+                ctx.fillRect(env.x+20, env.y+50, 40, 40); // Pencere
+                ctx.fillRect(env.x+90, env.y+50, 40, 40);
+                ctx.fillStyle = "#c0392b";
+                ctx.fillRect(env.x+50, groundY-60, 50, 60); // Kapı
+            } else if (env.type === 'cafe') {
+                ctx.fillStyle = "#16a085";
+                ctx.fillRect(env.x, env.y, 250, 150);
+                ctx.fillStyle = "#fff";
+                ctx.font = "20px Courier";
+                ctx.fillText("COFFEDUSTA", env.x+70, env.y+30);
+                ctx.fillStyle = "#f1c40f"; // Masa
+                ctx.fillRect(env.x+100, groundY-40, 50, 10);
+                ctx.fillRect(env.x+120, groundY-30, 10, 30);
+            } else if (env.type === 'tree') {
+                ctx.fillStyle = "#5d4037";
+                ctx.fillRect(env.x+40, env.y+50, 20, 50);
+                ctx.fillStyle = chapter===2 ? "#ecf0f1" : "#2ecc71";
+                ctx.beginPath();
+                ctx.arc(env.x+50, env.y+30, 40, 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+
+        // NPC'ler
+        npcs.forEach(npc => {
+            drawPixelArt(ctx, npc.sprite, npc.x, npc.y, 5, npc.colors);
+            // Üstlerinde ok işareti
+            if(Math.abs(player.x - npc.x) < 60 && !isDialogActive) {
+                ctx.fillStyle = "white";
+                ctx.fillText("▼", npc.x+15, npc.y - 15);
+            }
+        });
+
+        // Oyuncu
+        drawPixelArt(ctx, cagriSprite, player.x, player.y, 5, player.colors);
+        if(player.hasFlower) {
+            drawPixelArt(ctx, flowerSprite, player.x + (player.dir === 1 ? 25 : -10), player.y + 15, 3, {2:'#2ecc71', 5:'#e74c3c'});
         }
 
-        // Anılar Çizimi (Bölüm 7)
-        if (chapter === 7) {
-            ctx.fillStyle = "gold";
-            memories.forEach(m => {
-                if (!m.collected) {
-                    ctx.beginPath();
-                    ctx.arc(m.x, m.y, 10, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            });
+        // Bölüm 7'de yan yana durma efekti
+        if(chapter === 7 && player.x >= 1099) {
+            drawPixelArt(ctx, melikeSprite, player.x + 40, player.y, 5, {1:'#ffccaa', 2:'#e67e22', 3:'#e74c3c', 4:'#34495e'});
         }
 
-        // Oyuncu ve Melike
-        ctx.fillStyle = player.color;
-        ctx.fillRect(player.x, player.y, player.w, player.h);
+        // Partiküller (Kar)
+        ctx.fillStyle = "white";
+        particles.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            ctx.fill();
+        });
 
-        // Elinde çiçek varsa küçük kırmızı nokta
-        if (player.hasFlower) {
-            ctx.fillStyle = "red";
-            ctx.fillRect(player.x + 30, player.y + 20, 10, 10);
-        }
-
-        if (melike.active) {
-            ctx.fillStyle = melike.color;
-            ctx.fillRect(melike.x, melike.y, melike.w, melike.h);
-        }
-
-        frameCount++;
+        ctx.restore();
     }
 
+    // --- ANA DÖNGÜ ---
     function gameLoop() {
         update();
         draw();
         requestAnimationFrame(gameLoop);
     }
 
+    // Oyunu Başlat
+    setupChapter(1);
     gameLoop();
+
 </script>
 </body>
 </html>
