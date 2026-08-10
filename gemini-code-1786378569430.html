@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>1 Mart - İlk Kahve</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 450px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            border: 4px solid #fff;
+            border-radius: 10px;
+            background-color: #87CEEB;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+        #uiLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        #dialogBox {
+            background: rgba(0, 0, 0, 0.85);
+            border-top: 2px solid white;
+            padding: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        .btn {
+            background: #e74c3c;
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-family: inherit;
+            border-radius: 5px;
+            transition: 0.2s;
+        }
+        .btn:hover { background: #c0392b; }
+        .hidden { display: none !important; }
+        #dateDisplay {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px #000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Arka plan müziği (Blok3 introsu veya başka bir parça eklenebilir) -->
+    <!-- <audio id="bgm" src="blok3_intro.mp3" loop></audio> -->
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+        <div id="uiLayer">
+            <div id="dateDisplay">Eylül 2024</div>
+            <div style="flex-grow: 1;"></div>
+            <div id="dialogBox">Erciyes Üniversitesi Çardağı... İlerlemek için yön tuşlarını, diyalog için BOŞLUK tuşunu kullan.</div>
+        </div>
+        <div id="overlay">
+            <h2 id="overlayTitle">Başlık</h2>
+            <div id="overlayContent">İçerik</div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const dialogBox = document.getElementById("dialogBox");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayContent = document.getElementById("overlayContent");
+    const dateDisplay = document.getElementById("dateDisplay");
+
+    let chapter = 1;
+    let dialogQueue = [];
+    let isDialogActive = false;
+    let interactionCallback = null;
+    let frameCount = 0;
+
+    const keys = { ArrowRight: false, ArrowLeft: false };
+
+    const player = { x: 50, y: 350, w: 40, h: 60, color: "#3498db", hasFlower: false };
+    const melike = { x: 650, y: 350, w: 40, h: 60, color: "#e74c3c", active: true };
+
+    const memories = [];
+    let memoryScore = 0;
+
+    window.addEventListener("keydown", (e) => {
+        if (e.code === "ArrowRight") keys.ArrowRight = true;
+        if (e.code === "ArrowLeft") keys.ArrowLeft = true;
+        
+        if (e.code === "Space") {
+            if (isDialogActive) {
+                nextDialog();
+            } else if (Math.abs(player.x - melike.x) < 70 && melike.active) {
+                triggerChapterInteraction();
+            }
+        }
+    });
+
+    window.addEventListener("keyup", (e) => {
+        if (e.code === "ArrowRight") keys.ArrowRight = false;
+        if (e.code === "ArrowLeft") keys.ArrowLeft = false;
+    });
+
+    function showDialog(lines, callback) {
+        dialogQueue = lines;
+        isDialogActive = true;
+        interactionCallback = callback;
+        nextDialog();
+    }
+
+    function nextDialog() {
+        if (dialogQueue.length > 0) {
+            dialogBox.innerText = dialogQueue.shift();
+        } else {
+            isDialogActive = false;
+            dialogBox.innerText = "Hareket et (Yön Tuşları)";
+            if (interactionCallback) {
+                let cb = interactionCallback;
+                interactionCallback = null;
+                cb();
+            }
+        }
+    }
+
+    function showOverlay(title, htmlContent) {
+        overlayTitle.innerText = title;
+        overlayContent.innerHTML = htmlContent;
+        overlay.style.display = "flex";
+        isDialogActive = true; 
+    }
+
+    function closeOverlay() {
+        overlay.style.display = "none";
+        isDialogActive = false;
+    }
+
+    function triggerChapterInteraction() {
+        if (chapter === 1) {
+            showDialog([
+                "Onu ilk kez burada, çardakta gördüm.",
+                "Ceren ve Eren'le oturuyordu.",
+                "O an konuşmadık ama çok beğenmiştim."
+            ], () => { setupChapter(2); });
+        } else if (chapter === 2) {
+            showDialog([
+                "Aylar geçti...",
+                "Bazen en güzel hikayeler arkadaşlıkla başlar.",
+                "Ona bir kupon yaptırdım..."
+            ], () => { setupChapter(3); });
+        } else if (chapter === 4) {
+            showDialog([
+                "Çiçeği evinin altında verdim.",
+                "Beraber yürüyerek kafeye gidiyoruz."
+            ], () => { setupChapter(5); });
+        } else if (chapter === 5) {
+            showDialog([
+                "Mekan: Coffedusta.",
+                "Ve o gün, 1 Mart 2025."
+            ], () => { setupChapter(6); });
+        } else if (chapter === 7 && player.x > 700) {
+            // End game check done in update
+        }
+    }
+
+    function setupChapter(newChapter) {
+        chapter = newChapter;
+        player.x = 50;
+
+        switch (chapter) {
+            case 2:
+                canvas.style.backgroundColor = "#d35400"; // Sonbahar
+                dateDisplay.innerText = "Kış 2024 / Arkadaşız";
+                melike.x = 700;
+                break;
+            case 3:
+                // Kupon Minigame
+                melike.active = false;
+                showOverlay("Kupon Yaptırdım", `
+                    <p>Maçları seç (Ne seçersen seç hikaye devam edecek)</p>
+                    <button class="btn" onclick="kuponSonuc()">MS 1</button>
+                    <button class="btn" onclick="kuponSonuc()">2.5 Üst</button>
+                    <button class="btn" onclick="kuponSonuc()">KG Var</button>
+                `);
+                break;
+            case 4:
+                canvas.style.backgroundColor = "#2c3e50"; 
+                dateDisplay.innerText = "Mart 2025 Başı";
+                player.hasFlower = true;
+                melike.active = true;
+                melike.x = 600;
+                break;
+            case 5:
+                canvas.style.backgroundColor = "#f1c40f"; // Coffedusta içi
+                dateDisplay.innerText = "1 Mart 2025 - Coffedusta";
+                melike.x = 400;
+                break;
+            case 6:
+                // First Date Options
+                melike.active = false;
+                showOverlay("Coffedusta'dayız", `
+                    <p>Ona ne söylemek istersin?</p>
+                    <button class="btn" onclick="dateSecim('A')">A) Kahve harika.</button>
+                    <button class="btn" onclick="dateSecim('B')">B) İyi ki geldin.</button>
+                    <button class="btn" onclick="dateSecim('C')">C) Kupon yine tutmadı.</button>
+                `);
+                break;
+            case 7:
+                canvas.style.backgroundColor = "#8e44ad"; 
+                dateDisplay.innerText = "Zaman Akıyor...";
+                player.hasFlower = false;
+                melike.active = true;
+                melike.x = 700;
+                player.x = 50;
+                
+                // Anıları oluştur
+                for(let i=1; i<=4; i++) {
+                    memories.push({ x: i*150, y: 360, collected: false });
+                }
+                showDialog(["1.5 yıl geçti...", "Yoldaki anıları toplayarak ilerle."], null);
+                break;
+        }
+    }
+
+    // Global Functions for UI HTML
+    window.kuponSonuc = function() {
+        closeOverlay();
+        showDialog([
+            "KUPON YATTI...",
+            "Ama...",
+            "Ona 'tuttu' dedim!",
+            "Çiçek alıp yanına gidiyorum."
+        ], () => { setupChapter(4); });
+    }
+
+    window.dateSecim = function(secim) {
+        closeOverlay();
+        let tepki = "";
+        if(secim === 'C') tepki = "Melike güldü. 'Biliyordum!'";
+        else tepki = "Melike gülümsedi.";
+        
+        showDialog([
+            tepki,
+            "Çaylar, kahveler içildi...",
+            "Her şey mükemmeldi."
+        ], () => { setupChapter(7); });
+    }
+
+    function update() {
+        if (!isDialogActive) {
+            if (keys.ArrowRight && player.x < canvas.width - player.w) player.x += 5;
+            if (keys.ArrowLeft && player.x > 0) player.x -= 5;
+        }
+
+        if (chapter === 7) {
+            // Tarih değişimi efekti
+            if (player.x > 100) dateDisplay.innerText = "Haziran 2025";
+            if (player.x > 300) dateDisplay.innerText = "Eylül 2025";
+            if (player.x > 500) dateDisplay.innerText = "Ocak 2026";
+            if (player.x > 650) dateDisplay.innerText = "Bugün (1.5 Yıl Sonra)";
+
+            // Anı toplama
+            memories.forEach(m => {
+                if (!m.collected && Math.abs(player.x - m.x) < 30) {
+                    m.collected = true;
+                    memoryScore++;
+                }
+            });
+
+            // Final
+            if (player.x > 680 && !isDialogActive) {
+                showDialog([
+                    `Toplanan Anılar: ${memoryScore}/4`,
+                    "Sana kahve ısmarlamak için kuponu bahane ettim.",
+                    "Ama asıl istediğim kahve değil, seninle olmaktı.",
+                    "Üzerinden ne kadar zaman geçerse geçsin...",
+                    "İlk günkü kadar güzel kalacak.",
+                    "SON. ❤️"
+                ], () => { melike.x = player.x + 40; }); // Yan yana durma
+            }
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Zemin çizimi
+        ctx.fillStyle = "#27ae60";
+        if (chapter === 5 || chapter === 6) ctx.fillStyle = "#8d6e63"; // Ahşap zemin (Kafe)
+        ctx.fillRect(0, 410, canvas.width, 40);
+
+        // Çardak Çizimi (Bölüm 1)
+        if (chapter === 1) {
+            ctx.fillStyle = "#636e72";
+            ctx.fillRect(630, 250, 80, 10); // Çatı
+            ctx.fillRect(640, 260, 5, 150); // Direk
+            ctx.fillRect(695, 260, 5, 150); // Direk
+        }
+
+        // Anılar Çizimi (Bölüm 7)
+        if (chapter === 7) {
+            ctx.fillStyle = "gold";
+            memories.forEach(m => {
+                if (!m.collected) {
+                    ctx.beginPath();
+                    ctx.arc(m.x, m.y, 10, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Oyuncu ve Melike
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+
+        // Elinde çiçek varsa küçük kırmızı nokta
+        if (player.hasFlower) {
+            ctx.fillStyle = "red";
+            ctx.fillRect(player.x + 30, player.y + 20, 10, 10);
+        }
+
+        if (melike.active) {
+            ctx.fillStyle = melike.color;
+            ctx.fillRect(melike.x, melike.y, melike.w, melike.h);
+        }
+
+        frameCount++;
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+</body>
+</html>
